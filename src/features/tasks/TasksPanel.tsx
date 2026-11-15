@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { TaskCard } from "./TaskCard";
-import { TaskEditor } from "./TaskEditor";
+import { AdvancedTaskEditor, QuickTaskEditor } from "./TaskEditor";
 import { useTasks } from "./useTasks";
 import {
   createTask,
@@ -15,11 +15,10 @@ import type { Task } from "./types";
 
 export function TasksPanel() {
   const now = useLocalNow();
-  const [chosenDay, setChosenDay] = useState<string | null>(null);
-  const day = chosenDay ?? localDay(now);
+  const day = localDay(now);
   const [editor, setEditor] = useState<Task | "new" | null>(null);
   const { tasks, error, ready, change, reload } = useTasks();
-  const { daily, overdue } = selectTasks(tasks, day, now);
+  const { daily, overdue, completed } = selectTasks(tasks, day, now);
   const renderTask = (task: Task, late: boolean) => (
     <TaskCard
       key={task.id}
@@ -54,18 +53,6 @@ export function TasksPanel() {
         tabIndex={0}
       >
         <div className="task-toolbar">
-          <input
-            type="date"
-            aria-label="Выбранный день"
-            required
-            value={day}
-            onChange={(event) => {
-              if (event.target.value) setChosenDay(event.target.value);
-            }}
-          />
-          <button type="button" onClick={() => setChosenDay(null)}>
-            Сегодня
-          </button>
           <button
             type="button"
             className="add-task-button"
@@ -84,32 +71,46 @@ export function TasksPanel() {
         <ul className="task-list" aria-label="Задачи на день">
           {daily.map((task) => renderTask(task, false))}
         </ul>
-        {ready && daily.length === 0 && (
-          <p className="task-empty">На этот день задач нет</p>
+        {ready && daily.length + overdue.length + completed.length === 0 && (
+          <p className="task-empty">На сегодня задач нет</p>
         )}
-        <div className="overdue-heading">
-          <h2>Просроченные задачи</h2>
-          <span aria-hidden="true" />
-        </div>
-        <ul className="task-list" aria-label="Просроченные задачи">
-          {overdue.map((task) => renderTask(task, true))}
-        </ul>
-        {editor !== null && (
-          <TaskEditor
-            task={editor === "new" ? undefined : editor}
+        {overdue.length > 0 && (
+          <>
+            <div className="overdue-heading">
+              <h2>Просроченные задачи</h2>
+              <span aria-hidden="true" />
+            </div>
+            <ul className="task-list" aria-label="Просроченные задачи">
+              {overdue.map((task) => renderTask(task, true))}
+            </ul>
+          </>
+        )}
+        {completed.length > 0 && (
+          <ul
+            className="task-list completed-list"
+            aria-label="Выполненные задачи дня"
+          >
+            {completed.map((task) => renderTask(task, false))}
+          </ul>
+        )}
+        {editor === "new" && (
+          <QuickTaskEditor
             day={day}
             onClose={() => setEditor(null)}
             onSave={(input) =>
-              change((current) =>
-                editor === "new"
-                  ? [...current, createTask(input)]
-                  : editTask(current, editor.id, input),
-              )
+              change((current) => [...current, createTask(input)])
             }
-            onDelete={() =>
-              editor !== "new" &&
-              change((current) => deleteTask(current, editor.id))
+          />
+        )}
+        {editor !== null && editor !== "new" && (
+          <AdvancedTaskEditor
+            task={editor}
+            day={day}
+            onClose={() => setEditor(null)}
+            onSave={(input) =>
+              change((current) => editTask(current, editor.id, input))
             }
+            onDelete={() => change((current) => deleteTask(current, editor.id))}
           />
         )}
       </div>
