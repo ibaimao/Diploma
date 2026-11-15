@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { priorityColors } from "./taskModel";
 import type { Task } from "./types";
 
 export function TaskCard({
@@ -12,10 +13,11 @@ export function TaskCard({
   onEdit: () => void;
   onToggle: () => void;
 }) {
-  const deadline = new Date(task.deadline);
+  const deadline = task.deadline;
+  const exact = deadline?.kind === "datetime" ? new Date(deadline.at) : null;
   return (
     <li
-      className={`task-card task-card--${task.color}${overdue ? " task-card--overdue" : ""}`}
+      className={`task-card task-card--${priorityColors[task.priority]}${overdue ? " task-card--overdue" : ""}${task.completed ? " task-card--completed" : ""}`}
     >
       <h3>
         <button
@@ -26,17 +28,23 @@ export function TaskCard({
           {task.title}
         </button>
       </h3>
-      <span className="task-schedule" title={deadline.toLocaleString("ru-RU")}>
-        {overdue
-          ? `${deadline.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })} `
-          : "до "}
-        {deadline.toLocaleTimeString("ru-RU", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
-      </span>
+      {deadline && (
+        <span
+          className="task-schedule"
+          title={
+            exact?.toLocaleString("ru-RU") ??
+            `До конца ${deadline.kind === "date" ? deadline.date : ""}`
+          }
+        >
+          {exact
+            ? `до ${overdue ? exact.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }) + " " : ""}${exact.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`
+            : `до ${deadline.kind === "date" ? new Date(`${deadline.date}T12:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }) : ""}`}
+        </span>
+      )}
       <span className="sr-only">
-        Предполагаемая длительность: {task.estimated_minutes} мин.{" "}
+        {task.estimated_minutes === null
+          ? "Длительность не указана."
+          : `Предполагаемая длительность: ${task.estimated_minutes} мин.`}{" "}
         {task.category}
       </span>
       <button

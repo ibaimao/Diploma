@@ -1,29 +1,54 @@
-import type { Task, TaskInput } from "./types";
-import { localDay } from "../../shared/time";
+import type { Task, TaskColor, TaskInput, TaskPriority } from "./types";
+import { deadlineAt, isLocalDate, isInstant } from "./taskDates";
 
-export const taskColors = ["coral", "peach", "sage", "blue"] as const;
+export const priorityColors: Record<TaskPriority, TaskColor> = {
+  high: "coral",
+  medium: "peach",
+  low: "sage",
+  none: "blue",
+};
 export function validateInput(input: TaskInput): TaskInput {
-  if (!input.title.trim()) throw new Error("Введите название задачи.");
+  if (typeof input.title !== "string" || !input.title.trim())
+    throw new Error("Введите название задачи.");
+  if (typeof input.category !== "string")
+    throw new Error("Некорректная категория.");
+  if (!isLocalDate(input.planned_date)) throw new Error("Укажите дату дела.");
   if (
-    !Number.isSafeInteger(input.estimated_minutes) ||
-    input.estimated_minutes <= 0
+    input.estimated_minutes !== null &&
+    (!Number.isSafeInteger(input.estimated_minutes) ||
+      input.estimated_minutes <= 0)
   )
     throw new Error(
       "Длительность должна быть больше нуля и задана в целых минутах.",
     );
-  if (!input.deadline || !Number.isFinite(Date.parse(input.deadline)))
-    throw new Error("Укажите корректные дату и время дедлайна.");
-  if (!taskColors.includes(input.color))
-    throw new Error("Выберите цвет карточки.");
+  if (!["high", "medium", "low", "none"].includes(input.priority))
+    throw new Error("Выберите приоритет.");
+  const deadline = input.deadline;
+  if (
+    deadline !== null &&
+    (!deadline ||
+      (deadline.kind === "date"
+        ? !isLocalDate(deadline.date)
+        : deadline.kind !== "datetime" || !isInstant(deadline.at)))
+  )
+    throw new Error("Укажите корректный дедлайн.");
   return {
-    ...input,
     title: input.title.trim(),
     category: input.category.trim(),
-    deadline: new Date(input.deadline).toISOString(),
+    planned_date: input.planned_date,
+    estimated_minutes: input.estimated_minutes,
+    priority: input.priority,
+    deadline,
   };
 }
 export function createTask(input: TaskInput, id = crypto.randomUUID()): Task {
-  return { ...validateInput(input), id, actual_minutes: 0, completed: false };
+  return {
+    ...validateInput(input),
+    id,
+    actual_minutes: 0,
+    completed: false,
+    schedule_blocks: [],
+  };
 }
 export function editTask(tasks: Task[], id: string, input: TaskInput): Task[] {
   const clean = validateInput(input);
@@ -40,17 +65,26 @@ export function deleteTask(tasks: Task[], id: string): Task[] {
   return tasks.filter((task) => task.id !== id);
 }
 export function isOverdue(task: Task, now: Date): boolean {
-  return !task.completed && Date.parse(task.deadline) < now.getTime();
+  return (
+    !task.completed &&
+    task.deadline !== null &&
+    deadlineAt(task.deadline) < now.getTime()
+  );
 }
 export function selectTasks(tasks: Task[], day: string, now: Date) {
-  const sorted = [...tasks].sort(
-    (a, b) => Date.parse(a.deadline) - Date.parse(b.deadline),
-  );
+  const sorted = [...tasks].sort((a, b) => {
+    const aTime = a.deadline ? deadlineAt(a.deadline) : Infinity;
+    const bTime = b.deadline ? deadlineAt(b.deadline) : Infinity;
+    return aTime === bTime ? 0 : aTime < bTime ? -1 : 1;
+  });
   return {
     daily: sorted.filter(
       (task) =>
-        localDay(new Date(task.deadline)) === day && !isOverdue(task, now),
+        task.planned_date === day && !task.completed && !isOverdue(task, now),
     ),
     overdue: sorted.filter((task) => isOverdue(task, now)),
+    completed: sorted.filter(
+      (task) => task.planned_date === day && task.completed,
+    ),
   };
 }
