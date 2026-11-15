@@ -20,8 +20,8 @@ export function App() {
         aria-describedby="prototype-description"
       >
         <p id="prototype-description" className="sr-only">
-          Демонстрационные задачи и дата. Данные не сохраняются. Комната —
-          иллюстрация-заглушка, а не 3D. Остальные разделы пока не реализованы.
+          Задачи сохраняются в этом браузере. Комната — иллюстрация-заглушка, а
+          не 3D. Остальные разделы пока не реализованы.
         </p>
         <Navigation active={section} onSelect={setSection} />
         <div id="main-content" className="workspace" tabIndex={-1}>
