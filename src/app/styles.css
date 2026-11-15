@@ -483,3 +483,38 @@ p {
     scroll-behavior: auto !important;
   }
 }
+
+/* Task controls use the existing palette; planner and room geometry stay unchanged. */
+.task-title-button {
+  border: 0; padding: 0; background: transparent; color: inherit;
+  font: inherit; text-align: left; overflow-wrap: anywhere; width: 100%;
+}
+button.task-checkbox { border: 0; padding: 0; }
+.task-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; color: #486d8b; }
+.task-toolbar input, .task-toolbar button, .editor-actions button, .task-storage-error button {
+  font: inherit; color: #486d8b; background: #f3faff; border: 1px solid #aecbed; border-radius: 12px; padding: 7px 10px; min-height: 36px;
+}
+.task-toolbar input { min-width: 0; max-width: 100%; }
+.add-task-button { margin-left: auto; display: grid; place-items: center; }
+.add-task-button svg { width: 22px; height: 22px; }
+.task-empty, .task-storage-error { color: #486d8b; font-size: clamp(16px, 1.6cqw, 24px); }
+.task-storage-error { margin-bottom: 12px; }
+.task-dialog {
+  position: fixed; width: min(460px, calc(100vw - 24px)); max-height: calc(100dvh - 24px);
+  overflow-y: auto; overscroll-behavior: contain; border: 0; border-radius: 24px;
+  padding: 24px; background: #fcf8ee; color: #486d8b; box-shadow: 0 4px 16px #77715f38; font-size: 18px;
+}
+.task-dialog::backdrop { background: #486d8b66; }
+.task-dialog form { display: grid; gap: 14px; }
+.task-dialog h2 { font-size: 26px; }
+.task-dialog label { display: grid; gap: 4px; min-width: 0; }
+.task-dialog input:not([type="radio"]) { width: 100%; min-width: 0; font: inherit; padding: 8px; color: #486d8b; background: #fffdf4; border: 1px solid #aecbed; border-radius: 10px; }
+.task-dialog fieldset { border: 1px solid #aecbed; border-radius: 12px; min-width: 0; padding: 10px; }
+.duration-fields, .color-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.task-dialog .color-option { display: flex; align-items: center; padding: 8px; border-radius: 10px; color: #486d8b; background-color: #f3a487; }
+.task-dialog .task-card--peach { background: #f4d19b; }
+.task-dialog .task-card--sage { background: #b4c4a1; }
+.task-dialog .task-card--blue { background: #aecbed; }
+.editor-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.task-dialog [role="alert"] { color: #a6382b; }
+.task-dialog input:focus-visible, .task-toolbar input:focus-visible { outline: 3px solid #527f9f; outline-offset: 1px; }

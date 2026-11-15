@@ -1,7 +1,9 @@
+import { useLocalNow } from "../../shared/time";
 import { RoomIllustration } from "./RoomIllustration";
 
 /** The illustration stays independent of the future Blender / GLB renderer. */
 export function PetRoomPlaceholder() {
+  const now = useLocalNow();
   return (
     <aside
       className="pet-room"
@@ -9,12 +11,18 @@ export function PetRoomPlaceholder() {
     >
       <RoomIllustration layout="desktop" />
       <RoomIllustration layout="mobile" />
-      <div
-        className="room-date"
-        aria-label="Демонстрационные дата и время: 1 сентября, 10:56"
-      >
-        <span>1 СЕНТ.</span>
-        <span>10:56</span>
+      <div className="room-date" aria-label={now.toLocaleString("ru-RU")}>
+        <span>
+          {now
+            .toLocaleDateString("ru-RU", { day: "numeric", month: "short" })
+            .toUpperCase()}
+        </span>
+        <span>
+          {now.toLocaleTimeString("ru-RU", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </span>
       </div>
     </aside>
   );

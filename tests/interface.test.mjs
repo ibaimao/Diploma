@@ -8,7 +8,9 @@ let server;
 let container;
 let root;
 let App;
-let TaskCard;
+let model;
+let storage;
+let time;
 let act;
 let createElement;
 let createRoot;
@@ -27,11 +29,16 @@ before(async () => {
     server: { middlewareMode: true, hmr: false, watch: null },
   });
   ({ App } = await server.ssrLoadModule("/src/app/App.tsx"));
-  ({ TaskCard } = await server.ssrLoadModule(
-    "/src/features/tasks/TaskCard.tsx",
-  ));
+  model = await server.ssrLoadModule("/src/features/tasks/taskModel.ts");
+  storage = await server.ssrLoadModule("/src/features/tasks/taskStorage.ts");
+  time = await server.ssrLoadModule("/src/shared/time.ts");
+  globalThis.FormData = environment.window.FormData;
+  environment.window.HTMLDialogElement.prototype.showModal = function () {
+    this.open = true;
+  };
 });
 beforeEach(async () => {
+  window.localStorage.clear();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -76,101 +83,22 @@ test("Only the five requested sections appear in icon navigation", () => {
   assert.equal(container.querySelector(".nav-label"), null);
 });
 
-test("The task titles and times reproduce the supplied reference", () => {
-  assert.deepEqual(
-    [...container.querySelectorAll(".task-card h3")].map(
-      (node) => node.textContent,
-    ),
-    [
-      "Дописать отчёт",
-      "Убраться в комнате",
-      "Прочитать книгу",
-      "Нарисовать открытку",
-      "Позвонить другу",
-    ],
-  );
-  assert.deepEqual(
-    [...container.querySelectorAll(".task-schedule")].map(
-      (node) => node.textContent,
-    ),
-    ["9:00 - 11:00", "12:00 - 13:00", "до 17:30", "17:30 - 20:00", "до 8:00"],
-  );
-  assert.equal(container.querySelectorAll(".task-card--overdue").length, 1);
-  assert.equal(container.querySelectorAll(".task-checkbox--checked").length, 0);
+test("Fresh storage starts empty with current local clock and unchanged scroll structure", () => {
+  assert.equal(container.querySelectorAll(".task-card").length, 0);
   assert.equal(
-    container.querySelector(".room-date").textContent,
-    "1 СЕНТ.10:56",
+    container.querySelector(".room-date > span:last-child").textContent,
+    new Date().toLocaleTimeString("ru-RU", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
   );
-});
-
-test("No invented headings, captions, counters or extra task controls are shown", () => {
-  assert.deepEqual(
-    [...container.querySelectorAll("h1,h2")].map((node) => node.textContent),
-    ["Задачи на день", "Просроченные задачи"],
-  );
-  for (const removedText of [
-    "Знакомься",
-    "Плюша",
-    "Твой будущий компаньон",
-    "ТВОЙ УЮТНЫЙ УГОЛОК",
-    "Шаг за шагом",
-    "Каждому делу",
-    "Большие планы",
-    "Немного порядка",
-    "В своём ритме",
-    "Здесь скоро",
-    "Выполнено:",
-  ])
-    assert.equal(
-      container.textContent.includes(removedText),
-      false,
-      removedText,
-    );
+  const region = container.querySelector('.tasks-paper[role="region"]');
+  assert.equal(region.tabIndex, 0);
   assert.equal(
-    container.querySelectorAll(
-      "header,footer,.add-task-button,.task-details,.pet-introduction",
-    ).length,
-    0,
-  );
-});
-
-test("Demo status and unfinished features remain disclosed without visible decorative copy", () => {
-  const main = container.querySelector("main");
-  const description = document.getElementById(
-    main.getAttribute("aria-describedby"),
-  );
-  assert.ok(description.classList.contains("sr-only"));
-  assert.match(description.textContent, /Демонстрационные задачи и дата/);
-  assert.match(description.textContent, /Данные не сохраняются/);
-  assert.match(
-    container.querySelector(".pet-room").getAttribute("aria-label"),
-    /иллюстрация-заглушка/,
-  );
-  assert.match(
-    container
-      .querySelector('.tasks-paper[role="region"]')
-      .getAttribute("aria-label"),
-    /демонстрационных задач/,
-  );
-});
-
-test("Task list is a separate focusable region; navigation, room and heading stay outside", () => {
-  const scrollRegion = container.querySelector('.tasks-paper[role="region"]');
-  assert.equal(scrollRegion.tabIndex, 0);
-  assert.equal(scrollRegion.querySelectorAll(".task-card").length, 5);
-  assert.equal(
-    scrollRegion.contains(container.querySelector(".panel-heading")),
+    region.contains(container.querySelector(".panel-heading")),
     false,
   );
-  assert.equal(
-    scrollRegion.contains(container.querySelector(".navigation")),
-    false,
-  );
-  assert.equal(
-    scrollRegion.contains(container.querySelector(".pet-room")),
-    false,
-  );
-  assert.equal(container.querySelectorAll("input,form,canvas").length, 0);
+  assert.equal(region.contains(container.querySelector(".pet-room")), false);
 });
 
 test("Responsive room viewports preserve the illustration ratio and keep gradient IDs independent", () => {
@@ -202,47 +130,6 @@ test("Responsive room viewports preserve the illustration ratio and keep gradien
   }
 });
 
-test("Demonstration completion marks are inert", async () => {
-  const before = container.querySelector(".tasks-paper").innerHTML;
-  const indicators = container.querySelectorAll(".task-checkbox");
-  await act(() => indicators.forEach((indicator) => indicator.click()));
-  assert.equal(container.querySelector(".tasks-paper").innerHTML, before);
-  indicators.forEach((indicator) => {
-    assert.equal(indicator.getAttribute("role"), "img");
-    assert.match(indicator.getAttribute("aria-label"), /пример отметки/);
-  });
-});
-
-test("The task card can display a completed example without adding visible status text", async () => {
-  await act(() =>
-    root.render(
-      createElement(
-        "ul",
-        null,
-        createElement(TaskCard, {
-          task: {
-            id: "completed-example",
-            title: "Дописать отчёт",
-            category: "",
-            scheduleLabel: "9:00 - 11:00",
-            durationMinutes: 120,
-            color: "coral",
-            completed: true,
-            overdue: false,
-          },
-        }),
-      ),
-    ),
-  );
-  assert.match(
-    container
-      .querySelector(".task-checkbox--checked")
-      .getAttribute("aria-label"),
-    /^Выполнено/,
-  );
-  assert.equal(container.querySelectorAll("small").length, 0);
-});
-
 for (const label of [
   "Календарь",
   "Таймер Pomodoro",
@@ -263,19 +150,240 @@ for (const label of [
     assert.equal(container.querySelectorAll(".task-card").length, 0);
     assert.ok(container.querySelector(".pet-room"));
     await act(() => getNavigationButton("Задачи на день").click());
-    assert.equal(container.querySelectorAll(".task-card").length, 5);
+    assert.equal(container.querySelectorAll(".task-card").length, 0);
   });
 }
 
-test("Remounting restores demo tasks and does not persist navigation or task changes", async () => {
-  await act(() => getNavigationButton("Таймер Pomodoro").click());
+function click(text) {
+  const button = [...container.querySelectorAll("button")].find(
+    (node) =>
+      node.textContent === text || node.getAttribute("aria-label") === text,
+  );
+  assert.ok(button, `Missing button: ${text}`);
+  return act(() => button.click());
+}
+function fill(name, value) {
+  const input = container.querySelector(`[name="${name}"]`);
+  assert.ok(input);
+  // Uncontrolled form fields are read by FormData on submit.
+  input.value = value;
+}
+async function save() {
+  await act(() =>
+    container
+      .querySelector("form")
+      .dispatchEvent(
+        new window.Event("submit", { bubbles: true, cancelable: true }),
+      ),
+  );
+}
+async function remount() {
   await act(() => root.unmount());
   root = createRoot(container);
   await act(() => root.render(createElement(App)));
-  assert.equal(
-    getNavigationButton("Задачи на день").getAttribute("aria-current"),
-    "page",
+}
+async function add(
+  title = "Подготовить доклад",
+  deadline = `${time.localDay(new Date())}T23:59`,
+) {
+  await click("Добавить задачу");
+  fill("title", title);
+  fill("hours", "1");
+  fill("minutes", "15");
+  fill("deadline", deadline);
+  fill("category", "Учёба");
+  await save();
+}
+function stored() {
+  return storage.createTaskRepository(window.localStorage).load();
+}
+
+test("Create via modal, persist every field, edit without duplication, retain actual duration", async () => {
+  await add();
+  assert.equal(container.querySelectorAll(".task-card").length, 1);
+  const original = stored()[0];
+  assert.equal(original.estimated_minutes, 75);
+  assert.equal(original.actual_minutes, 0);
+  assert.equal(original.category, "Учёба");
+  await click("Редактировать: Подготовить доклад");
+  fill("title", "Исправленный доклад");
+  fill("minutes", "45");
+  await act(() =>
+    container.querySelector('[name="color"][value="sage"]').click(),
   );
-  assert.equal(container.querySelectorAll(".task-card").length, 5);
-  assert.equal(window.localStorage.length, 0);
+  await save();
+  assert.equal(stored().length, 1);
+  assert.equal(stored()[0].id, original.id);
+  assert.equal(stored()[0].title, "Исправленный доклад");
+  assert.equal(stored()[0].estimated_minutes, 105);
+  assert.equal(stored()[0].actual_minutes, 0);
+  assert.equal(stored()[0].color, "sage");
+  await remount();
+  assert.equal(
+    container.querySelector(".task-card h3").textContent,
+    "Исправленный доклад",
+  );
+});
+
+test("Completion and undo persist across reload; navigation retains tasks", async () => {
+  await add();
+  await click("Выполнено: Подготовить доклад");
+  assert.equal(stored()[0].completed, true);
+  await remount();
+  assert.equal(
+    container.querySelector(".task-checkbox").getAttribute("aria-pressed"),
+    "true",
+  );
+  await click("Выполнено: Подготовить доклад");
+  assert.equal(stored()[0].completed, false);
+  await click("Календарь");
+  await click("Задачи на день");
+  assert.equal(container.querySelectorAll(".task-card").length, 1);
+});
+
+test("Deletion requires confirmation; cancellation preserves task; empty list survives reload", async () => {
+  await add();
+  await click("Редактировать: Подготовить доклад");
+  await click("Удалить");
+  await click("Отмена");
+  assert.equal(stored().length, 1);
+  await click("Удалить");
+  await click("Удалить навсегда");
+  assert.deepEqual(stored(), []);
+  assert.equal(container.querySelectorAll(".task-card").length, 0);
+  await remount();
+  assert.deepEqual(stored(), []);
+  assert.equal(container.querySelectorAll(".task-card").length, 0);
+});
+
+test("Invalid title, missing deadline and nonpositive duration cannot be stored", async () => {
+  const valid = {
+    title: "Задача",
+    estimated_minutes: 30,
+    deadline: new Date().toISOString(),
+    category: "",
+    color: "blue",
+  };
+  for (const input of [
+    { title: "  " },
+    { deadline: "" },
+    { estimated_minutes: 0 },
+    { estimated_minutes: -10 },
+    { estimated_minutes: 1.5 },
+  ]) {
+    assert.throws(() => model.createTask({ ...valid, ...input }));
+  }
+  await click("Добавить задачу");
+  fill("title", "Задача");
+  fill("minutes", "0");
+  await save();
+  assert.match(
+    container.querySelector("dialog [role=alert]").textContent,
+    /больше нуля/,
+  );
+  assert.deepEqual(stored(), []);
+  fill("minutes", "-1");
+  await save();
+  assert.ok(container.querySelector("dialog [role=alert]"));
+  assert.deepEqual(stored(), []);
+});
+
+test("Local selected day and overdue section partition tasks without duplicates; completed tasks remain on their day", async () => {
+  const now = new Date("2026-11-15T12:00:00");
+  const input = {
+    title: "Задача",
+    estimated_minutes: 30,
+    category: "",
+    color: "peach",
+  };
+  const tasks = [
+    model.createTask({ ...input, deadline: "2026-11-15T13:00:00" }, "today"),
+    model.createTask({ ...input, deadline: "2026-11-14T13:00:00" }, "late"),
+    model.createTask({ ...input, deadline: "2026-11-16T13:00:00" }, "tomorrow"),
+  ];
+  const result = model.selectTasks(tasks, "2026-11-15", now);
+  assert.deepEqual(
+    result.daily.map((task) => task.id),
+    ["today"],
+  );
+  assert.deepEqual(
+    result.overdue.map((task) => task.id),
+    ["late"],
+  );
+  const done = model.toggleTask(tasks, "late");
+  assert.equal(model.selectTasks(done, "2026-11-14", now).daily[0].id, "late");
+  assert.equal(model.selectTasks(done, "2026-11-14", now).overdue.length, 0);
+  await add(
+    "Завтра",
+    `${time.localDay(new Date(Date.now() + 86400000))}T23:59`,
+  );
+  assert.equal(container.querySelectorAll(".task-card").length, 0);
+  const dateInput = container.querySelector('[aria-label="Выбранный день"]');
+  await act(() => {
+    Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value",
+    ).set.call(dateInput, time.localDay(new Date(Date.now() + 86400000)));
+    dateInput.dispatchEvent(new window.Event("change", { bubbles: true }));
+    dateInput.dispatchEvent(new window.Event("input", { bubbles: true }));
+  });
+  assert.equal(container.querySelectorAll(".task-card").length, 1);
+});
+
+test("Corrupt and unavailable storage are reported without overwriting existing data", async () => {
+  window.localStorage.setItem(storage.TASKS_KEY, "damaged");
+  await remount();
+  assert.ok(container.querySelector('[role="alert"]'));
+  assert.equal(
+    container.querySelector('[aria-label="Добавить задачу"]').disabled,
+    true,
+  );
+  assert.equal(window.localStorage.getItem(storage.TASKS_KEY), "damaged");
+  const repository = storage.createTaskRepository({
+    getItem() {
+      return null;
+    },
+    setItem() {
+      throw new Error("QuotaExceededError");
+    },
+  });
+  assert.throws(() => repository.save([]), /Quota/);
+});
+
+test("Failed write keeps modal open and existing tasks intact", async () => {
+  await add();
+  const original = window.Storage.prototype.setItem;
+  window.Storage.prototype.setItem = () => {
+    throw new Error("Quota exceeded");
+  };
+  try {
+    await click("Редактировать: Подготовить доклад");
+    fill("title", "Не сохранено");
+    await save();
+    assert.ok(container.querySelector("dialog"));
+    assert.equal(stored()[0].title, "Подготовить доклад");
+    assert.ok(container.querySelector("dialog [role=alert]"));
+  } finally {
+    window.Storage.prototype.setItem = original;
+  }
+});
+
+test("Storage events refresh other tabs; edits read latest saved list", async () => {
+  await add();
+  const first = stored()[0];
+  storage
+    .createTaskRepository(window.localStorage)
+    .save([
+      ...stored(),
+      { ...first, id: "other-tab", title: "Другая вкладка" },
+    ]);
+  await act(() =>
+    window.dispatchEvent(
+      new window.StorageEvent("storage", { key: storage.TASKS_KEY }),
+    ),
+  );
+  assert.equal(container.querySelectorAll(".task-card").length, 2);
+  await click("Выполнено: Подготовить доклад");
+  assert.equal(stored().length, 2);
+  assert.equal(stored()[0].completed, true);
 });
