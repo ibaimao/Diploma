@@ -537,3 +537,139 @@ button.task-checkbox { border: 0; padding: 0; }
 .task-dialog select { width: 100%; font: inherit; padding: 8px; color: #486d8b; background: #fffdf4; border: 1px solid #aecbed; border-radius: 10px; }
 .task-dialog select:focus-visible { outline: 3px solid #527f9f; outline-offset: 1px; }
 @media (max-width: 760px) { .completed-list { margin-top: 1.7cqw; } }
+
+/* Calendar owns its scroll surface; room and day-list styles are unchanged. */
+.calendar-paper {
+  color: #486d8b;
+  padding: clamp(10px, 1.5cqw, 22px);
+}
+.calendar-toolbar,
+.calendar-dates,
+.calendar-modes,
+.placement-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.calendar-content button {
+  font: inherit;
+  border: 1px solid #aecbed;
+  background: #f3faff;
+  color: #486d8b;
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-height: 44px;
+}
+.calendar-content button[aria-pressed="true"] {
+  background: #aecbed;
+}
+.calendar-dates h2 {
+  flex: 1;
+  font-size: clamp(17px, 1.8cqw, 26px);
+  text-align: center;
+}
+.placement-banner {
+  background: #e6eddb;
+  padding: 10px;
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+.calendar-paper [role="alert"] {
+  color: #a6382b;
+  margin: 8px 0;
+}
+.calendar-paper .fc {
+  --fc-border-color: #e1dccc;
+  --fc-today-bg-color: #f4d19b40;
+  --fc-neutral-bg-color: #f1eee3;
+  --fc-page-bg-color: #fcf8ee;
+  font-size: 14px;
+}
+.calendar-paper .fc a {
+  color: inherit;
+}
+.calendar-paper .fc-timegrid-slot {
+  height: 32px;
+}
+.calendar-paper .fc-col-header-cell-cushion {
+  padding: 10px 1px;
+}
+.calendar-paper .fc-event {
+  border-radius: 5px;
+  cursor: pointer;
+}
+.calendar-paper .fc-event-title {
+  overflow-wrap: anywhere;
+}
+.calendar-paper .fc-daygrid-event {
+  white-space: normal;
+}
+.calendar-paper .fc-daygrid-day-number {
+  padding: 8px;
+}
+.calendar-paper .fc-daygrid-day-frame {
+  min-height: 85px;
+}
+.calendar-completed {
+  opacity: 0.65;
+  text-decoration: line-through;
+}
+.unscheduled {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+.unscheduled button {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .calendar-paper .fc {
+    font-size: 11px;
+  }
+  .calendar-paper .fc-timegrid-axis {
+    width: 32px;
+  }
+  .calendar-paper .fc-daygrid-event .fc-event-time {
+    display: none;
+  }
+  .calendar-paper .fc-daygrid-day-frame {
+    min-height: 64px;
+  }
+  .calendar-toolbar {
+    gap: 5px;
+  }
+  .calendar-content button {
+    font-size: 14px;
+    padding: 7px;
+  }
+  .calendar-dates {
+    gap: 4px;
+  }
+  .calendar-modes {
+    width: 100%;
+  }
+  .calendar-modes button {
+    flex: 1;
+  }
+}
+.calendar-paper .placement-banner {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  box-shadow: 0 2px 5px #77715f22;
+}
+.calendar-paper > [role="alert"] {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: #fcf8ee;
+  padding: 8px;
+  border: 1px solid #f3a487;
+  border-radius: 10px;
+}
+.calendar-paper .unscheduled {
+  margin: 12px 0;
+}

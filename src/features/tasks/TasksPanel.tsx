@@ -13,11 +13,11 @@ import {
 import { localDay, useLocalNow } from "../../shared/time";
 import type { Task } from "./types";
 
-export function TasksPanel() {
+export function TasksPanel({ store }: { store: ReturnType<typeof useTasks> }) {
   const now = useLocalNow();
   const day = localDay(now);
   const [editor, setEditor] = useState<Task | "new" | null>(null);
-  const { tasks, error, ready, change, reload } = useTasks();
+  const { tasks, error, ready, change, reload } = store;
   const { daily, overdue, completed } = selectTasks(tasks, day, now);
   const renderTask = (task: Task, late: boolean) => (
     <TaskCard

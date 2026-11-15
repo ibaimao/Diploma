@@ -1,4 +1,6 @@
 import type { Task, TaskColor, TaskInput, TaskPriority } from "./types";
+import { placeTask } from "../calendar/scheduling";
+import { localDay, localDateTime } from "../../shared/time";
 import { deadlineAt, isLocalDate, isInstant } from "./taskDates";
 
 export const priorityColors: Record<TaskPriority, TaskColor> = {
@@ -12,7 +14,8 @@ export function validateInput(input: TaskInput): TaskInput {
     throw new Error("Введите название задачи.");
   if (typeof input.category !== "string")
     throw new Error("Некорректная категория.");
-  if (!isLocalDate(input.planned_date)) throw new Error("Укажите дату дела.");
+  if (input.planned_date !== null && !isLocalDate(input.planned_date))
+    throw new Error("Укажите дату дела.");
   if (
     input.estimated_minutes !== null &&
     (!Number.isSafeInteger(input.estimated_minutes) ||
@@ -54,7 +57,33 @@ export function editTask(tasks: Task[], id: string, input: TaskInput): Task[] {
   const clean = validateInput(input);
   if (!tasks.some((task) => task.id === id))
     throw new Error("Задача уже удалена. Обновите список.");
-  return tasks.map((task) => (task.id === id ? { ...task, ...clean } : task));
+  const next = tasks.map((task) =>
+    task.id === id ? { ...task, ...clean } : task,
+  );
+  const task = next.find((task) => task.id === id)!;
+  const previous = tasks.find((task) => task.id === id)!;
+  if (
+    task.planned_date &&
+    task.deadline &&
+    (previous.planned_date !== task.planned_date ||
+      JSON.stringify(previous.deadline) !== JSON.stringify(task.deadline)) &&
+    task.planned_date >
+      (task.deadline.kind === "date"
+        ? task.deadline.date
+        : localDay(new Date(task.deadline.at)))
+  ) {
+    throw new Error("Нельзя разместить задачу после дедлайна");
+  }
+  if (task.schedule_blocks.length && task.planned_date) {
+    return placeTask(
+      next,
+      id,
+      task.planned_date,
+      localDateTime(new Date(task.schedule_blocks[0].starts_at)).slice(11, 16),
+      [],
+    );
+  }
+  return next;
 }
 export function toggleTask(tasks: Task[], id: string): Task[] {
   return tasks.map((task) =>

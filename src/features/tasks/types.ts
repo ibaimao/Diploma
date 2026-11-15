@@ -12,7 +12,7 @@ export interface ScheduleBlock {
 export interface Task {
   id: string;
   title: string;
-  planned_date: string;
+  planned_date: string | null;
   deadline: TaskDeadline | null;
   estimated_minutes: number | null;
   actual_minutes: number;
