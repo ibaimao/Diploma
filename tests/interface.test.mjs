@@ -23,6 +23,13 @@ before(async () => {
   });
   globalThis.window = environment.window;
   globalThis.document = environment.window.document;
+  globalThis.HTMLElement = environment.window.HTMLElement;
+  globalThis.Element = environment.window.Element;
+  globalThis.getComputedStyle = environment.window.getComputedStyle.bind(
+    environment.window,
+  );
+  globalThis.requestAnimationFrame = (callback) => setTimeout(callback, 0);
+  globalThis.cancelAnimationFrame = clearTimeout;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   ({ act, createElement } = await import("react"));
   ({ createRoot } = await import("react-dom/client"));
@@ -35,6 +42,9 @@ before(async () => {
   storage = await server.ssrLoadModule("/src/features/tasks/taskStorage.ts");
   time = await server.ssrLoadModule("/src/shared/time.ts");
   dates = await server.ssrLoadModule("/src/features/tasks/taskDates.ts");
+  scheduling = await server.ssrLoadModule(
+    "/src/features/calendar/scheduling.ts",
+  );
   editors = await server.ssrLoadModule("/src/features/tasks/TaskEditor.tsx");
   globalThis.FormData = environment.window.FormData;
   environment.window.HTMLDialogElement.prototype.showModal = function () {
@@ -135,7 +145,6 @@ test("Responsive room viewports preserve the illustration ratio and keep gradien
 });
 
 for (const label of [
-  "Календарь",
   "Таймер Pomodoro",
   "Задания за монетки",
   "Магазин предметов",
@@ -460,7 +469,7 @@ test("Advanced exact time can be disabled independently; disabled deadline remov
   assert.equal(captured.deadline, null);
 });
 
-test("Editing can clear existing optional fields while preserving actual time and schedule blocks", async () => {
+test("Editing can clear estimate and deadline while preserving actual time and removing timed placement", async () => {
   const task = {
     ...model.createTask(
       input({
@@ -487,7 +496,7 @@ test("Editing can clear existing optional fields while preserving actual time an
   assert.equal(edited.estimated_minutes, null);
   assert.equal(edited.deadline, null);
   assert.equal(edited.actual_minutes, 23);
-  assert.deepEqual(edited.schedule_blocks, task.schedule_blocks);
+  assert.deepEqual(edited.schedule_blocks, []);
 });
 
 test("Optional values validate only when enabled; invalid title, date, time or duration cannot be saved", async () => {
@@ -769,4 +778,277 @@ test("Task selection sorts by real deadlines stably without mutating storage ord
     tasks.map((task) => task.id),
     ["none", "end", "early", "none2"],
   );
+});
+
+let scheduling;
+
+test("Calendar switches week/month, navigates periods and keeps the selected date", async () => {
+  await click("Календарь");
+  assert.ok(container.querySelector(".fc-timeGridWeek-view"));
+  await click("Следующий период");
+  const week = container.querySelector(".fc-day[data-date]").dataset.date;
+  await click("Месяц");
+  assert.ok(container.querySelector(".fc-dayGridMonth-view"));
+  await click("Неделя");
+  assert.equal(
+    container.querySelector(".fc-day[data-date]").dataset.date,
+    week,
+  );
+  await click("Сегодня");
+  assert.ok(container.querySelector(".fc-day-today"));
+});
+test("Calendar create closes form and starts placement; cancel keeps task unscheduled after reload", async () => {
+  await click("Календарь");
+  await add("Календарная задача");
+  assert.equal(container.querySelector("dialog"), null);
+  assert.match(
+    container.querySelector(".placement-banner").textContent,
+    /Календарная задача/,
+  );
+  assert.equal(stored()[0].planned_date, null);
+  assert.deepEqual(stored()[0].schedule_blocks, []);
+  await click("Отменить размещение");
+  assert.equal(container.querySelector(".placement-banner"), null);
+  assert.equal(stored().length, 1);
+  await remount();
+  await click("Календарь");
+  await click("Календарная задача — разместить");
+  assert.ok(container.querySelector(".placement-banner"));
+});
+test("Manual placement preserves estimates, deadline, category and completion; reload and both sections use the same storage", async () => {
+  const today = time.localDay(new Date());
+  const task = model.createTask(
+    input({ planned_date: null, estimated_minutes: 120 }),
+    "manual",
+  );
+  await seed([task]);
+  const next = scheduling.placeTask(stored(), task.id, today, "10:00", []);
+  storage.createTaskRepository(window.localStorage).save(next);
+  await remount();
+  assert.deepEqual(titles(), [task.title]);
+  assert.equal(stored()[0].schedule_blocks.length, 1);
+  await click("Выполнено: Задача");
+  await click("Календарь");
+  assert.ok(container.querySelector(".calendar-completed"));
+  await remount();
+  await click("Календарь");
+  assert.ok(container.querySelector(".calendar-completed"));
+});
+test("Exact deadlines reject late starts and overruns; rejected placement never mutates saved task", () => {
+  const task = model.createTask(
+    input({
+      planned_date: null,
+      estimated_minutes: 120,
+      deadline: dates.exactDeadline("2027-11-20", "18:00"),
+    }),
+    "deadline",
+  );
+  const placed = scheduling.placeTask(
+    [task],
+    task.id,
+    "2027-11-20",
+    "15:00",
+    [],
+  );
+  assert.equal(new Date(placed[0].schedule_blocks[0].ends_at).getHours(), 17);
+  for (const [day, at] of [
+    ["2027-11-20", "17:00"],
+    ["2027-11-21", "10:00"],
+  ])
+    assert.throws(
+      () => scheduling.placeTask([task], task.id, day, at, []),
+      /после дедлайна/,
+    );
+  assert.equal(task.planned_date, null);
+  assert.equal(task.schedule_blocks.length, 0);
+  assert.throws(
+    () => scheduling.placeTask(placed, task.id, "2027-11-20", "17:00", []),
+    /закончится позже/,
+  );
+});
+test("Date deadline includes local day boundary; no duration creates a date only, no fake interval", () => {
+  const task = model.createTask(
+    input({
+      estimated_minutes: 60,
+      deadline: { kind: "date", date: "2027-11-20" },
+    }),
+    "date",
+  );
+  const result = scheduling.placeTask(
+    [task],
+    task.id,
+    "2027-11-20",
+    "23:00",
+    [],
+  );
+  assert.equal(
+    time.localDay(new Date(result[0].schedule_blocks[0].ends_at)),
+    "2027-11-21",
+  );
+  assert.throws(
+    () => scheduling.placeTask([task], task.id, "2027-11-20", "23:30", []),
+    /после дедлайна/,
+  );
+  const noEstimate = { ...task, estimated_minutes: null };
+  const dateOnly = scheduling.placeTask(
+    [noEstimate],
+    task.id,
+    "2027-11-20",
+    null,
+    [],
+  );
+  assert.equal(dateOnly[0].planned_date, "2027-11-20");
+  assert.deepEqual(dateOnly[0].schedule_blocks, []);
+  assert.throws(
+    () => scheduling.placeTask([noEstimate], task.id, "2027-11-21", null, []),
+    /после дедлайна/,
+  );
+  const unlimited = { ...noEstimate, deadline: null };
+  assert.equal(
+    scheduling.placeTask([unlimited], task.id, "2099-12-31", null, [])[0]
+      .planned_date,
+    "2099-12-31",
+  );
+});
+test("Conflicts include confirmed tasks, weekly classes and blocks crossing midnight; adjacent intervals allowed", () => {
+  const task = model.createTask(input({ estimated_minutes: 120 }), "a");
+  const other = { ...task, id: "b" };
+  const event = {
+    id: "class",
+    title: "Занятие",
+    date: "2027-11-20",
+    start: "10:00",
+    end: "12:00",
+    weekly: true,
+  };
+  assert.throws(
+    () => scheduling.placeTask([task], "a", "2027-11-27", "11:00", [event]),
+    /фиксированным/,
+  );
+  assert.doesNotThrow(() =>
+    scheduling.placeTask([task], "a", "2027-11-27", "12:00", [event]),
+  );
+  const placed = scheduling.placeTask(
+    [task, other],
+    "a",
+    "2027-11-20",
+    "23:00",
+    [],
+  );
+  assert.throws(
+    () => scheduling.placeTask(placed, "b", "2027-11-21", "00:00", []),
+    /другой задачей/,
+  );
+  assert.throws(
+    () =>
+      scheduling.assertEventFree(
+        {
+          ...event,
+          date: "2027-11-21",
+          start: "00:30",
+          end: "02:00",
+          weekly: false,
+        },
+        placed,
+        [],
+      ),
+    /пересекается/,
+  );
+});
+test("Fixed events persist, reject overlaps between repeating series, and corrupt storage is retained", () => {
+  const event = {
+    id: "class",
+    title: "Занятие",
+    date: "2027-11-20",
+    start: "10:00",
+    end: "12:00",
+    weekly: true,
+  };
+  scheduling.saveEvents(window.localStorage, [event]);
+  assert.deepEqual(scheduling.loadEvents(window.localStorage), [event]);
+  assert.throws(
+    () =>
+      scheduling.assertEventFree(
+        { ...event, id: "another", date: "2027-11-27" },
+        [],
+        [event],
+      ),
+    /пересекаются/,
+  );
+  window.localStorage.setItem(scheduling.EVENTS_KEY, "broken");
+  assert.throws(() => scheduling.loadEvents(window.localStorage));
+  assert.equal(window.localStorage.getItem(scheduling.EVENTS_KEY), "broken");
+});
+
+test("Editing a placed task cannot move its end past a deadline or into a fixed event", async () => {
+  const day = time.localDay(new Date());
+  const task = model.createTask(
+    input({ planned_date: null, estimated_minutes: 120 }),
+    "edit-placement",
+  );
+  const [placed] = scheduling.placeTask([task], task.id, day, "10:00", []);
+  await seed([placed]);
+  await click("Редактировать: Задача");
+  await click("Добавить дедлайн");
+  fill("deadline_date", day);
+  await click("Указать точное время");
+  fill("deadline_time", "11:00");
+  await save();
+  assert.ok(container.querySelector("dialog [role=alert]"));
+  assert.equal(stored()[0].deadline, null);
+  assert.deepEqual(stored()[0].schedule_blocks, placed.schedule_blocks);
+  await click("Добавить дедлайн");
+  scheduling.saveEvents(window.localStorage, [
+    {
+      id: "class",
+      title: "Лекция",
+      date: day,
+      start: "12:30",
+      end: "14:00",
+      weekly: false,
+    },
+  ]);
+  fill("hours", "3");
+  await save();
+  assert.ok(container.querySelector("dialog"));
+  assert.equal(stored()[0].estimated_minutes, 120);
+});
+
+test("Fixed event form creates, edits and deletes a series with persistence", async () => {
+  await click("Календарь");
+  await click("Добавить событие");
+  fill("title", "Семинар");
+  fill("start", "10:00");
+  fill("end", "11:00");
+  await act(() => container.querySelector('[name="weekly"]').click());
+  await save();
+  assert.equal(container.querySelector("dialog"), null);
+  assert.equal(scheduling.loadEvents(window.localStorage)[0].weekly, true);
+  await act(() => container.querySelector(".fc-event").click());
+  fill("title", "Семинар по математике");
+  await save();
+  assert.equal(
+    scheduling.loadEvents(window.localStorage)[0].title,
+    "Семинар по математике",
+  );
+  await act(() => container.querySelector(".fc-event").click());
+  await click("Удалить событие");
+  assert.deepEqual(scheduling.loadEvents(window.localStorage), []);
+});
+
+test("Editing date-only placement cannot bypass the deadline", () => {
+  const task = model.createTask(
+    input({
+      planned_date: "2027-11-20",
+      estimated_minutes: null,
+      deadline: { kind: "date", date: "2027-11-20" },
+    }),
+    "date-edit",
+  );
+  assert.throws(
+    () =>
+      model.editTask([task], task.id, { ...task, planned_date: "2027-11-21" }),
+    /после дедлайна/,
+  );
+  assert.equal(task.planned_date, "2027-11-20");
 });

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { assertFree, loadEvents } from "../calendar/scheduling";
+import { deadlineAt } from "./taskDates";
 import type { Task } from "./types";
 import { createTaskRepository, TASKS_KEY } from "./taskStorage";
 
@@ -31,6 +33,22 @@ export function useTasks() {
     try {
       const repository = createTaskRepository(window.localStorage);
       const next = update(repository.load());
+      const events = loadEvents(window.localStorage);
+      for (const task of next)
+        for (const block of task.schedule_blocks) {
+          const start = Date.parse(block.starts_at),
+            end = Date.parse(block.ends_at);
+          if (
+            task.deadline &&
+            end >
+              deadlineAt(task.deadline) +
+                (task.deadline.kind === "date" ? 1 : 0)
+          )
+            throw new Error(
+              "Нельзя разместить задачу после дедлайна: задача закончится позже установленного срока.",
+            );
+          assertFree(start, end, next, events, task.id);
+        }
       repository.save(next);
       setTasks(next);
       setError("");

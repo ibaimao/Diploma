@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Navigation } from "./Navigation";
 import type { Section } from "./Navigation";
 import { TasksPanel } from "../features/tasks/TasksPanel";
-import { CalendarPlaceholder } from "../features/calendar/CalendarPlaceholder";
+import { CalendarPanel } from "../features/calendar/CalendarPanel";
+import { useTasks } from "../features/tasks/useTasks";
 import { TimerPlaceholder } from "../features/timer/TimerPlaceholder";
 import { PetRoomPlaceholder } from "../features/pet/PetRoomPlaceholder";
 import { FeaturePlaceholder } from "../shared/ui/FeaturePlaceholder";
 
 export function App() {
+  const taskStore = useTasks();
   const [section, setSection] = useState<Section>("tasks");
   return (
     <div className="app">
@@ -21,12 +23,13 @@ export function App() {
       >
         <p id="prototype-description" className="sr-only">
           Задачи сохраняются в этом браузере. Комната — иллюстрация-заглушка, а
-          не 3D. Остальные разделы пока не реализованы.
+          не 3D. Календарь поддерживает ручное планирование. Таймер, награды и
+          магазин пока не реализованы.
         </p>
         <Navigation active={section} onSelect={setSection} />
         <div id="main-content" className="workspace" tabIndex={-1}>
-          {section === "tasks" && <TasksPanel />}
-          {section === "calendar" && <CalendarPlaceholder />}
+          {section === "tasks" && <TasksPanel store={taskStore} />}
+          {section === "calendar" && <CalendarPanel store={taskStore} />}
           {section === "timer" && <TimerPlaceholder />}
           {section === "rewards" && (
             <FeaturePlaceholder

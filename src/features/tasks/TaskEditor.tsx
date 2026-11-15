@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { X } from "lucide-react";
 import type { Task, TaskDeadline, TaskInput, TaskPriority } from "./types";
 import { validateInput } from "./taskModel";
@@ -8,6 +8,9 @@ import { localDay, localDateTime } from "../../shared/time";
 
 interface EditorProps {
   task?: Task;
+  extraActions?: ReactNode;
+  planning?: boolean;
+  onPlanningMode?: (mode: "manual" | "assisted") => void;
   day: string;
   onSave: (input: TaskInput) => boolean;
   onDelete?: () => boolean;
@@ -16,12 +19,15 @@ interface EditorProps {
 export function QuickTaskEditor(props: Omit<EditorProps, "task" | "onDelete">) {
   return <TaskEditor {...props} mode="quick" />;
 }
-/** Calendar can supply its selected day here; no calendar UI is mounted yet. */
+/** Shared extended editor for both task and calendar sections. */
 export function AdvancedTaskEditor(props: EditorProps) {
   return <TaskEditor {...props} mode="advanced" />;
 }
 function TaskEditor({
   task,
+  extraActions,
+  planning,
+  onPlanningMode,
   day,
   mode,
   onSave,
@@ -29,6 +35,9 @@ function TaskEditor({
   onClose,
 }: EditorProps & { mode: "quick" | "advanced" }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const [planningMode, setPlanningMode] = useState<"manual" | "assisted">(
+    "manual",
+  );
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [withDuration, setWithDuration] = useState(
@@ -71,7 +80,9 @@ function TaskEditor({
       const plannedDate =
         mode === "quick"
           ? localDay(new Date())
-          : String(fields.get("planned_date"));
+          : planning
+            ? day
+            : String(fields.get("planned_date"));
       let deadline: TaskDeadline | null = null;
       if (withDeadline) {
         const date =
@@ -92,8 +103,10 @@ function TaskEditor({
             ? "none"
             : (String(fields.get("priority")) as TaskPriority),
       });
-      if (onSave(input)) onClose();
-      else
+      if (onSave(input)) {
+        onPlanningMode?.(planningMode);
+        onClose();
+      } else
         setError(
           "Не удалось сохранить. Проверьте доступ к хранилищу и повторите попытку.",
         );
@@ -165,15 +178,17 @@ function TaskEditor({
             </label>
             {mode === "advanced" && (
               <>
-                <label>
-                  Дата дела
-                  <input
-                    name="planned_date"
-                    type="date"
-                    required
-                    defaultValue={task?.planned_date ?? day}
-                  />
-                </label>
+                {!planning && (
+                  <label>
+                    Дата дела
+                    <input
+                      name="planned_date"
+                      type="date"
+                      required
+                      defaultValue={task?.planned_date ?? day}
+                    />
+                  </label>
+                )}
                 <label>
                   Приоритет
                   <select
@@ -286,7 +301,37 @@ function TaskEditor({
                 )}
               </fieldset>
             )}
+            {planning && (
+              <fieldset>
+                <legend>Способ планирования</legend>
+                <label>
+                  <input
+                    type="radio"
+                    name="planning_mode"
+                    checked={planningMode === "manual"}
+                    onChange={() => setPlanningMode("manual")}
+                  />
+                  Разместить вручную
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="planning_mode"
+                    checked={planningMode === "assisted"}
+                    onChange={() => setPlanningMode("assisted")}
+                  />
+                  Помочь подобрать время
+                </label>
+                {planningMode === "assisted" && (
+                  <p>
+                    Автоматический подбор появится позже. Сохраните задачу и
+                    разместите её вручную.
+                  </p>
+                )}
+              </fieldset>
+            )}
             <div className="editor-actions">
+              {extraActions}
               {task && onDelete && (
                 <button
                   type="button"
