@@ -1,13 +1,10 @@
-import { CalendarDays } from "lucide-react";
 import { FeaturePlaceholder } from "../../shared/ui/FeaturePlaceholder";
 
-export function CalendarPlaceholder({ onBack }: { onBack: () => void }) {
+export function CalendarPlaceholder() {
   return (
     <FeaturePlaceholder
-      icon={CalendarDays}
-      title="Место для твоих планов"
-      description="Здесь появится недельный календарь на FullCalendar: занятия, свободное время и ручной перенос задач. Сейчас раздел не реализован."
-      onBack={onBack}
+      title="Календарь"
+      description="Раздел пока не реализован. Календарь и перенос задач недоступны."
     />
   );
 }

@@ -1,13 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import "@fontsource/nunito/cyrillic-400.css";
-import "@fontsource/nunito/cyrillic-600.css";
-import "@fontsource/nunito/cyrillic-700.css";
-import "@fontsource/nunito/cyrillic-800.css";
-import "@fontsource/nunito/latin-400.css";
-import "@fontsource/nunito/latin-600.css";
-import "@fontsource/nunito/latin-700.css";
-import "@fontsource/nunito/latin-800.css";
+import "@fontsource/neucha/cyrillic-400.css";
+import "@fontsource/neucha/latin-400.css";
 import { App } from "./app/App";
 import "./app/styles.css";
 
