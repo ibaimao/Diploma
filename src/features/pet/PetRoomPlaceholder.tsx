@@ -7,7 +7,8 @@ export function PetRoomPlaceholder() {
       className="pet-room"
       aria-label="Комната питомца — иллюстрация-заглушка"
     >
-      <RoomIllustration />
+      <RoomIllustration layout="desktop" />
+      <RoomIllustration layout="mobile" />
       <div
         className="room-date"
         aria-label="Демонстрационные дата и время: 1 сентября, 10:56"

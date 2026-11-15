@@ -1,13 +1,19 @@
 import { useId } from "react";
 
 /** Original SVG placeholder inspired by the supplied room references; no WebGL or 3D yet. */
-export function RoomIllustration() {
+export function RoomIllustration({
+  layout = "desktop",
+}: {
+  layout?: "desktop" | "mobile";
+}) {
   const id = useId().replaceAll(":", "");
   return (
     <svg
-      className="room-illustration"
-      viewBox="0 0 520 620"
-      preserveAspectRatio="none"
+      className={`room-illustration room-illustration--${layout}`}
+      viewBox={layout === "mobile" ? "0 150 520 430" : "0 0 520 620"}
+      preserveAspectRatio={
+        layout === "mobile" ? "xMidYMid meet" : "xMidYMid slice"
+      }
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       role="img"
@@ -70,9 +76,17 @@ export function RoomIllustration() {
           <stop offset="1" stopColor="#83ACCF" />
         </linearGradient>
       </defs>
-      <path fill={`url(#${id}-wall)`} d="M0 0h520v620H0z" />
-      <path d="M0 416c165-22 331-15 520 6v198H0Z" fill={`url(#${id}-floor)`} />
-      <path d="M0 416c155-17 337-15 520 6" stroke="#D0A076" strokeWidth="9" />
+      {/* Background extends beyond the viewBox so meet never exposes empty side bands. */}
+      <path fill={`url(#${id}-wall)`} d="M-2000-2000h4520v4620h-4520z" />
+      <path
+        d="M-2000 416H0c165-22 331-15 520 6h2000v2198H-2000Z"
+        fill={`url(#${id}-floor)`}
+      />
+      <path
+        d="M-2000 416H0c155-17 337-15 520 6h2000"
+        stroke="#D0A076"
+        strokeWidth="9"
+      />
       {/* Arched wooden window. */}
       <g className="room-window">
         <path d="M330 310V187a70 70 0 0 1 140 0v123Z" fill="#D99F62" />

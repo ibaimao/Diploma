@@ -173,6 +173,35 @@ test("Task list is a separate focusable region; navigation, room and heading sta
   assert.equal(container.querySelectorAll("input,form,canvas").length, 0);
 });
 
+test("Responsive room viewports preserve the illustration ratio and keep gradient IDs independent", () => {
+  const desktop = container.querySelector(".room-illustration--desktop");
+  const mobile = container.querySelector(".room-illustration--mobile");
+  assert.ok(desktop);
+  assert.ok(mobile);
+  assert.equal(desktop.getAttribute("preserveAspectRatio"), "xMidYMid slice");
+  assert.equal(mobile.getAttribute("preserveAspectRatio"), "xMidYMid meet");
+  const desktopBox = desktop.getAttribute("viewBox").split(/\s+/).map(Number);
+  const mobileBox = mobile.getAttribute("viewBox").split(/\s+/).map(Number);
+  assert.ok(
+    mobileBox[3] < desktopBox[3],
+    "Mobile composition uses its own viewport, not stretched artwork",
+  );
+  const gradientIds = [
+    ...container.querySelectorAll(".room-illustration [id]"),
+  ].map((element) => element.id);
+  assert.equal(new Set(gradientIds).size, gradientIds.length);
+  for (const illustration of [desktop, mobile]) {
+    for (const element of illustration.querySelectorAll('[fill^="url(#"]')) {
+      const id = element.getAttribute("fill").slice(5, -1);
+      assert.ok(
+        [...illustration.querySelectorAll("[id]")].some(
+          (target) => target.id === id,
+        ),
+      );
+    }
+  }
+});
+
 test("Demonstration completion marks are inert", async () => {
   const before = container.querySelector(".tasks-paper").innerHTML;
   const indicators = container.querySelectorAll(".task-checkbox");

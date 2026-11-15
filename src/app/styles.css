@@ -2,7 +2,7 @@
   font-family: "Neucha", "Trebuchet MS", sans-serif;
   font-weight: 400;
   color: #fffdf4;
-  background: #faf0e3;
+  background: #f3d7ba;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -42,37 +42,41 @@ p {
   font-weight: 400;
 }
 .app {
-  --screen-gutter: clamp(18px, 5.4vw, 64px);
-  width: 100%;
+  width: 100vw;
   height: 100vh;
   height: 100dvh;
-  padding: var(--screen-gutter);
-  display: grid;
-  place-items: center;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  border-radius: 0;
+  box-shadow: none;
   overflow: hidden;
 }
 .planner {
   position: relative;
   container-type: inline-size;
-  width: min(100%, calc((100dvh - 2 * var(--screen-gutter)) * 1.9));
-  max-height: 100%;
-  aspect-ratio: 1.9;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  max-height: none;
+  aspect-ratio: auto;
   display: grid;
   grid-template-columns: 8% 54% minmax(0, 38%);
   grid-template-rows: 13.3% minmax(0, 1fr);
   isolation: isolate;
   overflow: hidden;
-  border-radius: clamp(22px, 3.8vw, 46px);
+  border-radius: 0;
   background: #f3d7ba;
-  box-shadow:
-    -4px 4px 9px #6f6b5d38,
-    0 2px 2px #fff6 inset;
+  box-shadow: none;
 }
 .planner::before {
   content: "";
   position: absolute;
-  inset: 0 38% 0 0;
-  border-radius: inherit;
+  inset: 0 calc(38% - 1cqw) 0 0;
+  border-radius: 0 4.5cqw 0 0;
   background: #cee0f5;
   box-shadow: 4px 0 6px #797c7e1f;
   z-index: 1;
@@ -82,6 +86,7 @@ p {
   grid-row: 2;
   min-width: 0;
   min-height: 0;
+  margin-right: -1.6cqw;
   z-index: 2;
   outline: none;
 }
@@ -262,9 +267,13 @@ p {
   display: block;
   width: 100%;
   height: 100%;
+  overflow: hidden;
+}
+.room-illustration--mobile {
+  display: none;
 }
 .room-window {
-  transform: translate(-24px, -86px) scale(1, 1.2);
+  transform: translate(-96px, -86px) scale(1.2);
 }
 .room-shelf,
 .room-vines {
@@ -274,7 +283,7 @@ p {
   transform: translate(-16px, -18px);
 }
 .room-cat {
-  transform: translate(-42px, 32px) scale(1.15, 0.9);
+  transform: translate(22px, 40px) scale(0.9);
 }
 .room-bowl {
   transform: translate(-142px, -235px) scale(1.4);
@@ -319,23 +328,9 @@ p {
   transform: translateY(0);
 }
 @media (max-width: 760px) {
-  .app {
-    padding: 0;
-  }
   .planner {
-    --navigation-height: clamp(66px, 12dvh, 86px);
-    width: 100%;
-    height: 100%;
-    max-height: none;
-    aspect-ratio: auto;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 40%) minmax(0, 1fr);
-    padding-bottom: calc(
-      var(--navigation-height) + env(safe-area-inset-bottom, 0px)
-    );
-    border-radius: 0;
-    box-shadow: none;
-    background: #cee0f5;
+    grid-template-rows: minmax(0, 38dvh) minmax(0, 1fr) auto;
   }
   .planner::before {
     display: none;
@@ -349,6 +344,7 @@ p {
     grid-column: 1;
     grid-row: 2;
     margin-top: -2cqw;
+    margin-right: 0;
     padding: 14.5cqw 3cqw 3cqw;
     border-radius: 9cqw 9cqw 0 0;
     background: #cee0f5;
@@ -410,16 +406,22 @@ p {
     display: block;
   }
   .navigation {
-    position: fixed;
-    left: 0;
-    right: 0;
+    --button-size: clamp(42px, 11.5vw, 52px);
+    --vertical-padding: clamp(10px, 2.8vw, 14px);
+    position: sticky;
+    grid-column: 1;
+    grid-row: 3;
     bottom: 0;
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     align-items: center;
-    justify-content: space-between;
-    height: calc(var(--navigation-height) + env(safe-area-inset-bottom, 0px));
-    padding: 2.8cqw 8cqw calc(2.8cqw + env(safe-area-inset-bottom, 0px));
+    justify-items: center;
+    min-height: calc(
+      var(--button-size) + 2 * var(--vertical-padding) +
+        env(safe-area-inset-bottom, 0px)
+    );
+    padding: var(--vertical-padding) 8cqw
+      calc(var(--vertical-padding) + env(safe-area-inset-bottom, 0px));
     gap: 3cqw;
     border-radius: 9cqw 9cqw 0 0;
     background: #bfdaf5;
@@ -427,8 +429,8 @@ p {
     box-shadow: inset 0 2px 4px #fff8;
   }
   .nav-button {
-    width: 11.5cqw;
-    height: 11.5cqw;
+    width: var(--button-size);
+    height: var(--button-size);
     border-radius: 3.4cqw;
     padding: 2.2cqw;
     box-shadow:
@@ -436,14 +438,26 @@ p {
       inset 0 1px 2px #fff;
   }
   .tasks-symbol {
-    font-size: 9cqw;
+    font-size: calc(var(--button-size) * 0.78);
+  }
+  .room-illustration--desktop {
+    display: none;
+  }
+  .room-illustration--mobile {
+    display: block;
   }
   .room-window {
-    transform: translate(-56px, -65px) scale(1, 1.2);
+    transform: translate(-23px, 85px) scale(0.9);
   }
   .room-shelf,
   .room-vines {
-    transform: translate(5px, -18px);
+    transform: translate(5px, 92px);
+  }
+  .room-table {
+    transform: translate(-16px, 60px);
+  }
+  .room-cat {
+    transform: translate(22px, 85px) scale(0.82);
   }
   .room-bowl {
     transform: translate(-45px, -25px) scale(0.97);
@@ -457,9 +471,9 @@ p {
     font-size: 5.1cqw;
   }
 }
-@media (max-height: 460px) and (min-width: 761px) {
-  .app {
-    --screen-gutter: 12px;
+@media (max-height: 540px) and (max-width: 760px) {
+  .planner {
+    grid-template-rows: minmax(0, 30dvh) minmax(0, 1fr) auto;
   }
 }
 @media (prefers-reduced-motion: reduce) {
