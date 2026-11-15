@@ -1,0 +1,55 @@
+import type { DemoTask } from "./types";
+
+/** Fixed examples, not the current user's tasks or a generated schedule. */
+export const demoTasks: readonly DemoTask[] = [
+  {
+    id: "demo-report",
+    title: "Дописать отчёт",
+    category: "Практика",
+    scheduleLabel: "9:00 - 11:00",
+    durationMinutes: 120,
+    color: "coral",
+    completed: false,
+    overdue: false,
+  },
+  {
+    id: "demo-seminar",
+    title: "Убраться в комнате",
+    category: "Дом",
+    scheduleLabel: "12:00 - 13:00",
+    durationMinutes: 60,
+    color: "peach",
+    completed: false,
+    overdue: false,
+  },
+  {
+    id: "demo-reading",
+    title: "Прочитать книгу",
+    category: "Литература",
+    scheduleLabel: "до 17:30",
+    durationMinutes: 45,
+    color: "sage",
+    completed: false,
+    overdue: false,
+  },
+  {
+    id: "demo-notes",
+    title: "Нарисовать открытку",
+    category: "Творчество",
+    scheduleLabel: "17:30 - 20:00",
+    durationMinutes: 150,
+    color: "blue",
+    completed: false,
+    overdue: false,
+  },
+  {
+    id: "demo-overdue",
+    title: "Позвонить другу",
+    category: "Личное",
+    scheduleLabel: "до 8:00",
+    durationMinutes: 15,
+    color: "coral",
+    completed: false,
+    overdue: true,
+  },
+];
